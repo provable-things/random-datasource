@@ -499,7 +499,7 @@ void rng_main(void) {
                     os_memmove(&roothash, &state_roothash, sizeof(state_roothash));
                     last_imported_state_nonce = state_nonce;
 
-                    //return 1 for success!!!
+                    //return 0 for success!!!
                     G_io_apdu_buffer[0] = 0x00;
                     tx = 1;
                     THROW(0x9000);
