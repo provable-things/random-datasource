@@ -19,7 +19,7 @@ uint64_t ticks;
 #define SW_INVALID_DATA 0x6A80
 
 #define  SN 400 //number of sectors available
-#define UNUSED_SPACE (64 - 2*sizeof(uint64_t)) //sector size 64bytes - inonce - nonce
+#define UNUSED_SPACE (64 - 2*sizeof(uint64_t)) //sector size 64bytes - write_cnt - nonce
 
 typedef struct isector_t {
     uint64_t nonce;
@@ -41,6 +41,7 @@ typedef struct sector_w1l_t {
 /***************** Variables stored in FLASH memory *****************/
 
 //Must have a N_ prefix -> non volatile memory
+
 typedef struct initialized_t {
 
     uint8_t initialized;
@@ -85,7 +86,7 @@ int read_offset(sector_w1l_t *nvm_sector){
 
 uint64_t read_write_cnt(sector_w1l_t *nvm_sector,unsigned int index){
 
-    
+        //return the number of writes (write_cnt) made so far to the sector with an id equal to the 'index' parameter
         return nvm_sector->sector[index].write_cnt;
         
 
@@ -93,13 +94,14 @@ uint64_t read_write_cnt(sector_w1l_t *nvm_sector,unsigned int index){
 
 nvm_sector_t * read_address(sector_w1l_t *nvm_sector,unsigned int index){
 
+    //returns the address of the sector with an id equal to the 'index' parameter
     return &nvm_sector->sector[index];
 
 }
 
 isector_t read(sector_w1l_t *nvm_sector){
 
-    //return the sector data (isector) corresponing to the sector id  obtained by read_offset()
+    //return the sector data (isector) corresponding to the sector id  obtained by read_offset()
     int sector_id;
 
     BEGIN_TRY {
@@ -168,8 +170,8 @@ uint64_t get_state(){
     //use the wear levelling mechanism
     isector = read(&N_nvm_sector); 
     nonce = isector.nonce;
-    nonce++;
-    isector.nonce = nonce;
+    nonce++; //we increment the nonce in a variable and then copy it to the appropriate sector
+    isector.nonce = nonce; //because there is no direct way to do math operations in nvm, just copying bytes
     write(&N_nvm_sector, isector); //use the wear leveling write mechanism
     
     return nonce;
@@ -278,7 +280,7 @@ void rng_main(void) {
     volatile cx_sha256_t sha;
     volatile uint64_t state_timestamp;
     
-    //initial roothash of the empty tree (all leaf nodes contain the ZeroHash value
+    //initial roothash of the empty tree (all leaf nodes contain the ZeroHash value)
     volatile uint8_t state_roothash[] = {245, 67, 142, 13, 153, 224, 250, 125, 4, 135, 7, 178, 193, 105, 9, 178, 76, 135, 223, 155, 181, 216, 171, 245, 238, 96, 116, 202, 154, 37, 25, 26}; //f5438e0d99e0fa7d048707b2c16909b24c87df9bb5d8abf5ee6074ca9a25191a
     volatile uint64_t state_nonce;
 
@@ -442,7 +444,7 @@ void rng_main(void) {
                     os_memmove(&state_nonce, G_io_apdu_buffer + tx, sizeof(state_nonce));
                     isector = read(&N_nvm_sector); 
                     if (state_nonce != isector.nonce){
-                        //invalid state, state_nonce should be the last one exported, return 0;
+                        //invalid state, state_nonce should be the last one exported, return 1;
                         G_io_apdu_buffer[0] = 0x01;
                         tx = 1;
                         //THROW(SW_INVALID_DATA);
@@ -462,7 +464,7 @@ void rng_main(void) {
 
                     //VERIFY THE SIGNATURE
 
-                    //generate the hash from (role,state_nonce, timestamp)
+                    //generate the hash from (role,state_nonce, timestamp, state_roothash)
                     role = ROLE_STATE_EXPORT_IMPORT;
 
                     cx_sha256_init(&sha);
@@ -539,7 +541,7 @@ void rng_main(void) {
                             break;
                         }
 
-                        // get the 8-byte dt value (rx - 1 byte(nbytes) - 32 bytes(nonce) )
+                        // get the 32-byte rnonce value (rx - 1 byte(nbytes) - 32 bytes(nonce) )
                         os_memmove(QI_value_rnonce, G_io_apdu_buffer+rx-1-32, 32);
 
                         //get NBYTES -> number of random bytes to be returned
@@ -563,7 +565,7 @@ void rng_main(void) {
                         os_memmove(QI_valuehash, hash, sizeof(hash));
                         os_memmove(QI_newhash, hash, sizeof(hash));
 
-                        //QI_ZH = zero hash, SHA256("\x00"*32), maybe we should 
+                        //QI_ZH = zero hash, SHA256("\x00"*32) 
                         os_memmove(QI_oldhash, QI_ZH, 32);
 
                     } else {
@@ -635,6 +637,10 @@ void rng_main(void) {
 
                         //get the offset: we need only one nibble (half byte) for indexing, depending on if it's the 1st or 2nd half
                         //we shift 4-bits right(when we need the 4 MSB-> 1st half) and then zero the 4 MSB
+                        //QI_keyhash[QI_depth/2]: get the byte, we start from the bottom so we start from the last byte, the depth is 0-63 so
+                        //we have to divide with 2
+                        //the same byte is accessed twice, first the LSBs are obtained (QI_depth+1)%2
+                        //& 0x0f: we always keep the MSBs
                         QI_nodeOffset = (QI_keyhash[QI_depth/2] >> 4*((QI_depth+1)%2)) & 0x0f;
 
                         //check if.. old_node[keyhash[depth]] == old_hash. If not.. ERROR
@@ -656,7 +662,7 @@ void rng_main(void) {
 
                         //old_node[keyhash[depth]] = newhash #new_node
                         // update the node with the  hash of the new value
-                        // valuehash == newhash == sha256((t0,dt,nonce,nbytes)) if depth ==63
+                        // valuehash == newhash == sha256((t0,dt,nonce,nbytes)) if depth == 63
                         os_memmove(oldNode+32*QI_nodeOffset, QI_newhash, 32);
 
                         QI_depth--;
@@ -706,7 +712,7 @@ void rng_main(void) {
                         }
                         THROW(0x9000);
                         break;
-                    }
+                    }//end (if 255;else) 
                     tx = 0;
                     THROW(0x9000);
                     break;
@@ -735,7 +741,7 @@ void rng_main(void) {
                     //VERIFY THE SIGNATURE
 
                     cx_sha256_init(&sha);
-
+                    // prefix 0xffffffff + keyhash + valuehash
                     cx_hash(&sha.header, CX_LAST, G_io_apdu_buffer+2, 4+32+32, hash);
 
                     //get the signature length, init a temp pubkey and verify the signature
@@ -800,6 +806,7 @@ void rng_main(void) {
 
                     THROW(0x9000);
                     break;
+
                 case 0x30: // getOldNodeHash
                     cx_sha256_init(&sha);
                     cx_hash(&sha.header, CX_LAST, &oldNode, sizeof(oldNode), hash);
