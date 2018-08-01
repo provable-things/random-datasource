@@ -58,8 +58,6 @@ cd nanos-secure-sdk/
 
 git reset --hard 1525802dda0b5437439c61b79f49e632b2080d14
 
-cd ..
-
 apt-get update
 
 apt-get install -y libc6-dev-i386
@@ -67,6 +65,8 @@ apt-get install -y libc6-dev-i386
 
 2- Download and compile the application
 ```
+cd /home
+
 git clone https://github.com/oraclize/random-datasource.git
 
 cd random-datasource/ledger/blue-app-rng/
@@ -76,6 +76,8 @@ make BOLOS_ENV=/opt/ledger-blue/ BOLOS_SDK=/home/nanos-secure-sdk
 
 3- Generate the CODEHASH
 ```
+cd /home
+
 git clone https://github.com/LedgerHQ/blue-loader-python.git
 
 cp -r blue-loader-python/ledgerblue/ /usr/local/lib/python2.7/dist-packages/ledgerblue/
