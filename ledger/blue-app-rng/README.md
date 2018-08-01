@@ -54,6 +54,12 @@ cd home
 
 git clone https://github.com/LedgerHQ/nanos-secure-sdk.git
 
+cd nanos-secure-sdk/
+
+git reset --hard 1525802dda0b5437439c61b79f49e632b2080d14
+
+cd ..
+
 apt-get update
 
 apt-get install -y libc6-dev-i386
