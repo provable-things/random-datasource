@@ -1,7 +1,22 @@
+# General
+
 .DS_Store
+
+keystore.db/
+
+*.bin
+*.log
+*.dat
 
 # Python
 
 venv/
 env/
 utils/
+*.pyc
+
+
+# C
+*.hex
+
+
