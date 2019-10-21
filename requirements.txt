@@ -25,4 +25,4 @@ pyparsing==2.2.0
 requests==2.17.3
 six==1.10.0
 slowaes==0.1a1
-urllib3==1.21.1
+urllib3==1.24.2
