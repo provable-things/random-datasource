@@ -14,7 +14,7 @@ ipaddress==1.0.18
 ledgerblue==0.1.13
 olefile==0.44
 packaging==16.8
-Pillow==4.0.0
+Pillow==8.2.0
 plyvel==0.9
 protobuf==3.2.0
 pyasn1==0.2.3
